@@ -1,0 +1,16 @@
+[
+{
+  "modid": "WITT",
+  "name": "WITT - What Is That Thing",
+  "description": "A rework of WAILA for legacy Forge versions.",
+  "version": "WITT-1.7.10-1.0",
+  "mcversion": "WITT-1.7.10-1.0",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Gholdzen"],
+  "credits": "ProfMobius",
+  "logoFile": "witt2.png",
+  "screenshots": [],
+  "dependencies": []
+}
+]

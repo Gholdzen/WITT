@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.yourname.modid.witt.api.iml" filepath="$PROJECT_DIR$/.idea/modules/com.yourname.modid.witt.api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.yourname.modid.witt.main.iml" filepath="$PROJECT_DIR$/.idea/modules/com.yourname.modid.witt.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.yourname.modid.witt.test.iml" filepath="$PROJECT_DIR$/.idea/modules/com.yourname.modid.witt.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/witt.api.iml" filepath="$PROJECT_DIR$/.idea/modules/witt.api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/witt.main.iml" filepath="$PROJECT_DIR$/.idea/modules/witt.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/witt.test.iml" filepath="$PROJECT_DIR$/.idea/modules/witt.test.iml" />
+    </modules>
+  </component>
+</project>
