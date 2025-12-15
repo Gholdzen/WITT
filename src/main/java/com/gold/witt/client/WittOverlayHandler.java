@@ -49,6 +49,8 @@ public class WittOverlayHandler {
     public void onRenderOverlay(RenderGameOverlayEvent.Text event) {
         if (mc.theWorld == null || mc.thePlayer == null) return;
 
+        if (event.type != RenderGameOverlayEvent.ElementType.TEXT) return;
+
         MovingObjectPosition mop = mc.objectMouseOver;
         if (mop == null) return;
 

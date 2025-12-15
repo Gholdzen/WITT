@@ -12,7 +12,7 @@ import java.util.List;
 @Mod(
         modid = "WITT",
         name = "WITT - What Is That Thing",
-        version = "WITT-1.7.10-1.0",
+        version = "WITT-1.7.10-1.0.1.8",
         acceptedMinecraftVersions = "1.7.10"
 )
 public class WITT {
