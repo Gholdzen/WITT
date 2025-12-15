@@ -1,10 +1,15 @@
 package com.gold.witt.client;
 
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.InputEvent;
 import net.minecraft.client.Minecraft;
 
 public class WittKeyInputHandler {
+
+    public static void register() {
+        FMLCommonHandler.instance().bus().register(new WittKeyInputHandler());
+    }
 
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {

@@ -7,13 +7,13 @@ import net.minecraft.client.gui.GuiScreen;
 public class GuiWittConfig extends GuiScreen {
 
     private final GuiScreen parent;
+
     private GuiButton btnBlock;
     private GuiButton btnEntity;
     private GuiButton btnModId;
     private GuiButton btnCorner;
     private GuiButton btnHarvest;
     private GuiButton btnDone;
-    private GuiButton btnTitle;
 
     public GuiWittConfig(GuiScreen parent) {
         this.parent = parent;
@@ -24,11 +24,12 @@ public class GuiWittConfig extends GuiScreen {
         this.buttonList.clear();
 
         int midX = this.width / 2;
-        int y = this.height / 7;
+        int y = this.height / 6;
 
-        btnTitle = new GuiButton(10, midX - 40, y, 80, 20, "WITT");
-        this.buttonList.add(btnTitle);
-        y += 30;
+        GuiButton title = new GuiButton(999, midX - 50, y, 100, 20, "WITT Config");
+        title.enabled = false;
+        this.buttonList.add(title);
+        y += 28;
 
         btnBlock = new GuiButton(1, midX - 100, y, 200, 20, "");
         this.buttonList.add(btnBlock);
@@ -57,11 +58,11 @@ public class GuiWittConfig extends GuiScreen {
     }
 
     private void updateButtonText() {
-        btnBlock.displayString   = "Block preview: " + (WittConfig.showBlockOverlay  ? "ON" : "OFF");
+        btnBlock.displayString   = "Block preview: "  + (WittConfig.showBlockOverlay  ? "ON" : "OFF");
         btnEntity.displayString  = "Entity preview: " + (WittConfig.showEntityOverlay ? "ON" : "OFF");
-        btnModId.displayString   = "Show mod id: "   + (WittConfig.showModId         ? "ON" : "OFF");
+        btnModId.displayString   = "Show mod id: "    + (WittConfig.showModId         ? "ON" : "OFF");
         btnCorner.displayString  = "Overlay corner: " + WittConfig.overlayCorner.name();
-        btnHarvest.displayString = "Harvest info: "  + (WittConfig.showHarvestInfo   ? "ON" : "OFF");
+        btnHarvest.displayString = "Harvest info: "   + (WittConfig.showHarvestInfo   ? "ON" : "OFF");
     }
 
     @Override
@@ -86,21 +87,7 @@ public class GuiWittConfig extends GuiScreen {
                 break;
 
             case 4:
-                switch (WittConfig.overlayCorner) {
-                    case TOP_LEFT:
-                        WittConfig.overlayCorner = WittConfig.OverlayCorner.TOP_RIGHT;
-                        break;
-                    case TOP_RIGHT:
-                        WittConfig.overlayCorner = WittConfig.OverlayCorner.BOTTOM_RIGHT;
-                        break;
-                    case BOTTOM_RIGHT:
-                        WittConfig.overlayCorner = WittConfig.OverlayCorner.BOTTOM_LEFT;
-                        break;
-                    case BOTTOM_LEFT:
-                    default:
-                        WittConfig.overlayCorner = WittConfig.OverlayCorner.TOP_LEFT;
-                        break;
-                }
+                WittConfig.cycleCorner();
                 break;
 
             case 5:
@@ -113,6 +100,7 @@ public class GuiWittConfig extends GuiScreen {
 
     @Override
     public void onGuiClosed() {
+        WittConfig.save();
         Minecraft.getMinecraft().gameSettings.saveOptions();
     }
 
