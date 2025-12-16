@@ -17,7 +17,7 @@ import java.util.List;
 @Mod(
         modid = "WITT",
         name = "WITT - What Is That Thing",
-        version = "WITT-1.7.10-1.0.2.2",
+        version = "WITT-1.7.10-1.0.2.3",
         acceptedMinecraftVersions = "1.7.10"
 )
 public class WITT {
@@ -87,7 +87,7 @@ public class WITT {
                 sleep(per);
             }
 
-            bar.step("1.7.10-1.0.2 stable:" + stable);
+            bar.step("1.7.10-1.0.2.3 stable:" + stable);
             sleep(per);
         } finally {
             ProgressManager.pop(bar);
