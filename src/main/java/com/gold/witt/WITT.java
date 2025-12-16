@@ -2,7 +2,6 @@ package com.gold.witt;
 
 import com.gold.witt.integration.WittHatsIntegration;
 import com.gold.witt.api.IWittIntegration;
-import com.gold.witt.integration.WittForgeFluidsIntegration;
 import com.gold.witt.proxy.CommonProxy;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.ProgressManager;
@@ -17,7 +16,7 @@ import java.util.List;
 @Mod(
         modid = "WITT",
         name = "WITT - What Is That Thing",
-        version = "WITT-1.7.10-1.0.2.3",
+        version = "WITT-1.7.10-1.0.2.4",
         acceptedMinecraftVersions = "1.7.10"
 )
 public class WITT {
@@ -87,7 +86,7 @@ public class WITT {
                 sleep(per);
             }
 
-            bar.step("1.7.10-1.0.2.3 stable:" + stable);
+            bar.step("1.7.10-1.0.2.4 stable:" + stable);
             sleep(per);
         } finally {
             ProgressManager.pop(bar);
@@ -104,7 +103,6 @@ public class WITT {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        createWittIntegration("forgefluids", new WittForgeFluidsIntegration());
         createWittIntegration("hats", new WittHatsIntegration());
     }
 
