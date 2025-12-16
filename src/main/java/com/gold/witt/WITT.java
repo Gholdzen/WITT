@@ -17,7 +17,7 @@ import java.util.List;
 @Mod(
         modid = "WITT",
         name = "WITT - What Is That Thing",
-        version = "WITT-1.7.10-1.0.2",
+        version = "WITT-1.7.10-1.0.2.2",
         acceptedMinecraftVersions = "1.7.10"
 )
 public class WITT {
@@ -52,6 +52,7 @@ public class WITT {
         }
         return arr;
     }
+
 
     private static final class Entry {
         public final String modid;

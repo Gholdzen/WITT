@@ -285,6 +285,15 @@ public class WittOverlayHandler {
                 requiredLevel = -1;
             }
 
+
+            if (block.getMaterial() == Material.ground
+                    || block.getMaterial() == Material.grass
+                    || block.getMaterial() == Material.sand) {
+                requiredToolClass = "any";
+                requiredLevel = -1;
+            }
+
+
             if (requiredToolClass == null || requiredToolClass.isEmpty()) {
                 requiredToolClass = guessToolClass(block);
             }
@@ -894,7 +903,7 @@ public class WittOverlayHandler {
             return "pickaxe";
         }
 
-        if (m == Material.ground || m == Material.grass || m == Material.clay || m == Material.sand || m == Material.snow) {
+        if ( m == Material.clay || m == Material.snow) {
             return "shovel";
         }
 
