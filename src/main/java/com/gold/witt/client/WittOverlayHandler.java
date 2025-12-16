@@ -8,17 +8,14 @@ import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.ModContainer;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockDoublePlant;
-import net.minecraft.block.BlockPane;
-import net.minecraft.block.BlockSapling;
-import net.minecraft.block.BlockTallGrass;
+import net.minecraft.block.*;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.entity.RenderItem;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.entity.Entity;
@@ -33,6 +30,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import net.minecraft.world.World;
+import net.minecraftforge.client.IItemRenderer;
+import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import org.lwjgl.opengl.GL11;
 
@@ -97,6 +96,14 @@ public class WittOverlayHandler {
 
             drawCentered(centerX, y, "Tool: " + info.harvestTool + " (" + info.harvestLevelName + ")", 0xCCCCCC);
             y += fontH + 2;
+        }
+
+        if (info.stack != null && info.stack.getItem() instanceof ItemBlock) {
+            Block b = Block.getBlockFromItem(info.stack.getItem());
+            if (b instanceof BlockChest) {
+                drawCentered(centerX, y, "isDoubleChest: " + (info.isDoubleChest ? "True" : "False"), 0xCCCCCC);
+                y += fontH + 2;
+            }
         }
 
         WittContext ctx = new WittContext(mc, mc.theWorld, mc.thePlayer, mop);
@@ -170,7 +177,7 @@ public class WittOverlayHandler {
             if (info.entity != null && WittConfig.showEntityOverlay) {
                 renderSpinningEntity(info.entity, previewX, previewY);
             } else if (info.stack != null && info.stack.getItem() != null && WittConfig.showBlockOverlay) {
-                renderSpinningBlock(info.stack, previewX, previewY);
+                renderSpinningBlock(info.stack, previewX, previewY, info);
             }
         }
     }
@@ -229,6 +236,22 @@ public class WittOverlayHandler {
         info.displayName = displayName;
         info.stack = stack;
         info.growthPercent = -1;
+
+        info.isDoubleChest = false;
+        info.doubleChestAlongX = false;
+
+        if (block instanceof BlockChest) {
+            boolean xChest = false;
+            boolean zChest = false;
+
+            if (world.getBlock(x - 1, y, z) instanceof BlockChest) xChest = true;
+            if (world.getBlock(x + 1, y, z) instanceof BlockChest) xChest = true;
+            if (world.getBlock(x, y, z - 1) instanceof BlockChest) zChest = true;
+            if (world.getBlock(x, y, z + 1) instanceof BlockChest) zChest = true;
+
+            info.isDoubleChest = xChest || zChest;
+            info.doubleChestAlongX = xChest;
+        }
 
         GameRegistry.UniqueIdentifier uid = null;
         if (stack != null && stack.getItem() != null) {
@@ -310,6 +333,83 @@ public class WittOverlayHandler {
         return info;
     }
 
+    private void renderSpinningDoubleChest(ItemStack stack, int centerX, int centerY, boolean alongX) {
+        if (mc.theWorld == null || stack == null || stack.getItem() == null) return;
+
+        float oldBx = OpenGlHelper.lastBrightnessX;
+        float oldBy = OpenGlHelper.lastBrightnessY;
+
+        boolean oldInFrame = RenderItem.renderInFrame;
+
+        try {
+            long t = Minecraft.getSystemTime();
+            float angle = (t % 4000L) / 4000.0F * 360.0F;
+
+            GL11.glPushMatrix();
+            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthMask(true);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+
+            GL11.glDisable(GL11.GL_LIGHTING);
+            GL11.glDisable(GL11.GL_COLOR_MATERIAL);
+            GL11.glShadeModel(GL11.GL_FLAT);
+
+            GL11.glColor4f(1F, 1F, 1F, 1F);
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240F, 240F);
+
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
+            GL11.glDisable(GL11.GL_BLEND);
+
+            float scale = 18F;
+            float yOffset = 6F;
+
+            GL11.glTranslatef(centerX, centerY + yOffset, 150F);
+            GL11.glScalef(scale, scale, scale);
+            GL11.glRotatef(150F, 1F, 0F, 0F);
+            GL11.glRotatef(angle, 0F, 1F, 0F);
+
+            float off = 0.55F;
+
+            mc.getTextureManager().bindTexture(TextureMap.locationItemsTexture);
+
+            EntityItem e1 = new EntityItem(mc.theWorld, 0, 0, 0, stack);
+            EntityItem e2 = new EntityItem(mc.theWorld, 0, 0, 0, stack);
+            e1.hoverStart = 0;
+            e2.hoverStart = 0;
+
+            RenderHelper.enableGUIStandardItemLighting();
+
+            RenderItem ri = new RenderItem();
+            ri.setRenderManager(RenderManager.instance);
+            RenderItem.renderInFrame = true;
+
+            GL11.glPushMatrix();
+            if (alongX) GL11.glTranslatef(-off, 0F, 0F); else GL11.glTranslatef(0F, 0F, -off);
+            ri.doRender(e1, 0, 0, 0, 0F, 0F);
+            GL11.glPopMatrix();
+
+            GL11.glPushMatrix();
+            if (alongX) GL11.glTranslatef(off, 0F, 0F); else GL11.glTranslatef(0F, 0F, off);
+            ri.doRender(e2, 0, 0, 0, 0F, 0F);
+            GL11.glPopMatrix();
+
+            RenderItem.renderInFrame = oldInFrame;
+
+            RenderHelper.disableStandardItemLighting();
+
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, oldBx, oldBy);
+
+            GL11.glPopAttrib();
+            GL11.glPopMatrix();
+        } catch (Throwable ignored) {
+            RenderItem.renderInFrame = oldInFrame;
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, oldBx, oldBy);
+            renderFlatItem(stack, centerX, centerY);
+        }
+    }
 
     private TargetInfo getEntityInfo(MovingObjectPosition mop) {
         Entity e = mop.entityHit;
@@ -431,11 +531,13 @@ public class WittOverlayHandler {
         saplingGrowthMap.remove(key);
     }
 
-    private void renderSpinningBlock(ItemStack stack, int centerX, int centerY) {
+    private void renderSpinningBlock(ItemStack stack, int centerX, int centerY, TargetInfo info) {
         if (mc.theWorld == null || stack == null || stack.getItem() == null) return;
 
         Item item = stack.getItem();
         Block block = null;
+
+        boolean forceEntityRender = false;
 
         if (item instanceof ItemBlock) {
             block = Block.getBlockFromItem(item);
@@ -448,8 +550,7 @@ public class WittOverlayHandler {
                 }
 
                 if (rt == -1) {
-                    renderFlatItem(stack, centerX, centerY);
-                    return;
+                    forceEntityRender = true;
                 }
             }
         }
@@ -460,6 +561,13 @@ public class WittOverlayHandler {
             renderFlatItem(stack, centerX, centerY);
             return;
         }
+
+        if (info != null && info.isDoubleChest && block instanceof BlockChest && forceEntityRender) {
+            renderSpinningDoubleChest(stack, centerX, centerY, info.doubleChestAlongX);
+            return;
+        }
+
+        boolean oldInFrame = RenderItem.renderInFrame;
 
         try {
             long t = Minecraft.getSystemTime();
@@ -526,9 +634,9 @@ public class WittOverlayHandler {
                 GL11.glRotatef(45F, 0F, 1F, 0F);
             }
 
-            GL11.glRotatef(angle, 0F, 1F, 0F);
+            if (!forceEntityRender && block != null) {
+                GL11.glRotatef(angle, 0F, 1F, 0F);
 
-            if (block != null) {
                 mc.getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
 
                 if (isPane) {
@@ -549,23 +657,123 @@ public class WittOverlayHandler {
                     }
                 }
             } else {
-                mc.getTextureManager().bindTexture(TextureMap.locationItemsTexture);
-                EntityItem ent = new EntityItem(mc.theWorld, 0, 0, 0, stack);
-                ent.hoverStart = 0;
-                RenderHelper.enableGUIStandardItemLighting();
-                RenderManager.instance.renderEntityWithPosYaw(ent, 0, 0, 0, 0F, 0F);
-                RenderHelper.disableStandardItemLighting();
+                IItemRenderer irInv = MinecraftForgeClient.getItemRenderer(stack, IItemRenderer.ItemRenderType.INVENTORY);
+                IItemRenderer irEnt = MinecraftForgeClient.getItemRenderer(stack, IItemRenderer.ItemRenderType.ENTITY);
+
+                if (irInv != null) {
+                    RenderHelper.enableStandardItemLighting();
+                    irInv.renderItem(IItemRenderer.ItemRenderType.INVENTORY, stack);
+                    RenderHelper.disableStandardItemLighting();
+                } else if (irEnt != null) {
+                    EntityItem ent = new EntityItem(mc.theWorld, 0, 0, 0, stack);
+                    ent.hoverStart = 0;
+                    ent.age = 0;
+                    ent.ticksExisted = 0;
+                    ent.rotationYaw = 0F;
+                    ent.prevRotationYaw = 0F;
+
+                    RenderHelper.enableStandardItemLighting();
+                    irEnt.renderItem(IItemRenderer.ItemRenderType.ENTITY, stack, renderBlocks, ent);
+                    RenderHelper.disableStandardItemLighting();
+                } else {
+                    mc.getTextureManager().bindTexture(TextureMap.locationItemsTexture);
+
+                    EntityItem ent = new EntityItem(mc.theWorld, 0, 0, 0, stack);
+                    ent.hoverStart = 0;
+                    ent.age = 0;
+                    ent.ticksExisted = 0;
+                    ent.rotationYaw = 0F;
+                    ent.prevRotationYaw = 0F;
+
+                    RenderItem ri = new RenderItem();
+                    ri.setRenderManager(RenderManager.instance);
+
+                    RenderItem.renderInFrame = true;
+                    RenderHelper.enableGUIStandardItemLighting();
+                    ri.doRender(ent, 0, 0, 0, 0F, 0F);
+                    RenderHelper.disableStandardItemLighting();
+                    RenderItem.renderInFrame = oldInFrame;
+                }
             }
 
             GL11.glPopAttrib();
             GL11.glPopMatrix();
         } catch (Throwable ignored) {
+            RenderItem.renderInFrame = oldInFrame;
             renderFlatItem(stack, centerX, centerY);
         }
     }
 
+    private void renderAnimatedChest(Block block, int meta, int centerX, int centerY, boolean isDouble, boolean alongX) {
+        if (mc.theWorld == null) return;
+
+        long t = Minecraft.getSystemTime();
+        float spin = (t % 4000L) / 4000.0F * 360.0F;
+
+        float f = (t % 1200L) / 1200.0F;
+        float lid = (float) (0.5F - 0.5F * Math.cos(f * Math.PI));
+
+        GL11.glPushMatrix();
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+
+        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GL11.glDepthMask(true);
+        GL11.glDisable(GL11.GL_CULL_FACE);
+
+        GL11.glDisable(GL11.GL_LIGHTING);
+        GL11.glDisable(GL11.GL_COLOR_MATERIAL);
+        GL11.glShadeModel(GL11.GL_FLAT);
+        GL11.glColor4f(1F, 1F, 1F, 1F);
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240F, 240F);
+
+        float scale = 18F;
+        float yOffset = 7F;
+
+        GL11.glTranslatef(centerX, centerY + yOffset, 150F);
+        GL11.glScalef(scale, scale, scale);
+        GL11.glRotatef(150F, 1F, 0F, 0F);
+        GL11.glRotatef(spin, 0F, 1F, 0F);
+
+        net.minecraft.tileentity.TileEntityChest te = new net.minecraft.tileentity.TileEntityChest();
+        te.blockType = block;
+        te.blockMetadata = meta;
+        te.lidAngle = lid;
+        te.prevLidAngle = lid;
+
+        if (isDouble) {
+            net.minecraft.tileentity.TileEntityChest te2 = new net.minecraft.tileentity.TileEntityChest();
+            te2.blockType = block;
+            te2.blockMetadata = meta;
+            te2.lidAngle = lid;
+            te2.prevLidAngle = lid;
+
+            if (alongX) {
+                te.adjacentChestXPos = te2;
+                te2.adjacentChestXNeg = te;
+            } else {
+                te.adjacentChestZPos = te2;
+                te2.adjacentChestZNeg = te;
+            }
+
+            GL11.glPushMatrix();
+            GL11.glTranslatef(-0.5F, 0F, 0F);
+            net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher.instance.renderTileEntityAt(te, 0, 0, 0, 0F);
+            GL11.glPopMatrix();
+
+            GL11.glPushMatrix();
+            GL11.glTranslatef(0.5F, 0F, 0F);
+            net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher.instance.renderTileEntityAt(te2, 0, 0, 0, 0F);
+            GL11.glPopMatrix();
+        } else {
+            net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher.instance.renderTileEntityAt(te, 0, 0, 0, 0F);
+        }
+
+        GL11.glPopAttrib();
+        GL11.glPopMatrix();
+    }
+
     private void renderFlatItem(ItemStack stack, int centerX, int centerY) {
-        net.minecraft.client.renderer.entity.RenderItem ri = new net.minecraft.client.renderer.entity.RenderItem();
+        RenderItem ri = new RenderItem();
 
         GL11.glPushMatrix();
         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
@@ -591,6 +799,9 @@ public class WittOverlayHandler {
 
     private void renderSpinningEntity(EntityLivingBase entity, int centerX, int centerY) {
         if (mc.theWorld == null || entity == null) return;
+
+        float oldBx = OpenGlHelper.lastBrightnessX;
+        float oldBy = OpenGlHelper.lastBrightnessY;
 
         float oldYaw = entity.rotationYaw;
         float oldPrevYaw = entity.prevRotationYaw;
@@ -640,6 +851,8 @@ public class WittOverlayHandler {
         RenderHelper.enableStandardItemLighting();
         RenderManager.instance.renderEntityWithPosYaw(entity, 0, 0, 0, 0F, 1F);
         RenderHelper.disableStandardItemLighting();
+
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, oldBx, oldBy);
 
         GL11.glPopAttrib();
         GL11.glPopMatrix();
@@ -717,6 +930,9 @@ public class WittOverlayHandler {
         String harvestTool;
         String harvestLevelName;
         int growthPercent = -1;
+
+        boolean isDoubleChest;
+        boolean doubleChestAlongX;
     }
 
     private static class SaplingGrowth {

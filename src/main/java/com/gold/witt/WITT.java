@@ -1,10 +1,15 @@
 package com.gold.witt;
 
+import com.gold.witt.integration.WittHatsIntegration;
 import com.gold.witt.api.IWittIntegration;
+import com.gold.witt.integration.WittForgeFluidsIntegration;
 import com.gold.witt.proxy.CommonProxy;
 import cpw.mods.fml.common.Mod;
+import cpw.mods.fml.common.ProgressManager;
 import cpw.mods.fml.common.SidedProxy;
+import cpw.mods.fml.common.event.FMLConstructionEvent;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +17,7 @@ import java.util.List;
 @Mod(
         modid = "WITT",
         name = "WITT - What Is That Thing",
-        version = "WITT-1.7.10-1.0.1.8",
+        version = "WITT-1.7.10-1.0.2",
         acceptedMinecraftVersions = "1.7.10"
 )
 public class WITT {
@@ -57,6 +62,51 @@ public class WITT {
             this.integration = integration;
         }
     }
+
+    @Mod.EventHandler
+    public void construct(FMLConstructionEvent event) {
+        boolean stable = true;
+
+        int size = INTEGRATIONS.size();
+        long duration = 5000L + Math.min(5000L, (long) size * 250L);
+
+        int steps = 3 + Math.min(97, size);
+        ProgressManager.ProgressBar bar = ProgressManager.push("WITT", steps);
+        try {
+            long per = duration / (long) steps;
+
+            bar.step("getBlockInfo");
+            sleep(per);
+
+            bar.step("getEntityInfo");
+            sleep(per);
+
+            for (int i = 0; i < steps - 3; i++) {
+                bar.step("Loading " + (i + 1) + "/" + (steps - 3));
+                sleep(per);
+            }
+
+            bar.step("1.7.10-1.0.2 stable:" + stable);
+            sleep(per);
+        } finally {
+            ProgressManager.pop(bar);
+        }
+    }
+
+    private void sleep(long ms) {
+        if (ms <= 0L) return;
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException ignored) {
+        }
+    }
+
+    @Mod.EventHandler
+    public void preInit(FMLPreInitializationEvent event) {
+        createWittIntegration("forgefluids", new WittForgeFluidsIntegration());
+        createWittIntegration("hats", new WittHatsIntegration());
+    }
+
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {

@@ -11,7 +11,7 @@ import org.lwjgl.input.Keyboard;
 public class WittKeyHandler {
 
     private static final KeyBinding openConfigKey =
-            new KeyBinding("WITT", Keyboard.KEY_H, "What Is That Thing");
+            new KeyBinding("WITT", Keyboard.KEY_O, "What Is That Thing");
 
     public static void register() {
         ClientRegistry.registerKeyBinding(openConfigKey);

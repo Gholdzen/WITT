@@ -18,5 +18,6 @@ public class ClientProxy extends CommonProxy {
 
 
         FMLCommonHandler.instance().bus().register(new WittKeyInputHandler());
+
     }
 }

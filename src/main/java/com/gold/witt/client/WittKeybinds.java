@@ -9,7 +9,7 @@ public class WittKeybinds {
     public static KeyBinding openConfig;
 
     public static void init() {
-        openConfig = new KeyBinding("key.witt.openConfig", Keyboard.KEY_H, "WITT");
+        openConfig = new KeyBinding("Open WITT Config", Keyboard.KEY_O, "WITT");
         ClientRegistry.registerKeyBinding(openConfig);
     }
 }
