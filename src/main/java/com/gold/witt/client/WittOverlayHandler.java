@@ -2,6 +2,16 @@ package com.gold.witt.client;
 
 import com.gold.witt.WITT;
 import com.gold.witt.api.IWittIntegration;
+import com.gold.witt.api.IWailaBlockDecorator;
+import com.gold.witt.api.IWailaDataAccessor;
+import com.gold.witt.api.IWailaDataProvider;
+import com.gold.witt.api.IWailaEntityAccessor;
+import com.gold.witt.api.IWailaEntityDecorator;
+import com.gold.witt.api.IWailaEntityProvider;
+import com.gold.witt.api.IWailaRegistrar;
+import com.gold.witt.api.WailaAPI;
+import com.gold.witt.api.impl.DataAccessor;
+import com.gold.witt.api.impl.EntityAccessor;
 import com.gold.witt.api.WittContext;
 import com.gold.witt.api.WittTooltip;
 import cpw.mods.fml.common.Loader;
@@ -27,6 +37,7 @@ import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import net.minecraft.world.World;
@@ -35,7 +46,9 @@ import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import org.lwjgl.opengl.GL11;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class WittOverlayHandler {
@@ -47,7 +60,6 @@ public class WittOverlayHandler {
     @SubscribeEvent
     public void onRenderOverlay(RenderGameOverlayEvent.Text event) {
         if (mc.theWorld == null || mc.thePlayer == null) return;
-
         if (event.type != RenderGameOverlayEvent.ElementType.TEXT) return;
 
         MovingObjectPosition mop = mc.objectMouseOver;
@@ -62,6 +74,151 @@ public class WittOverlayHandler {
         }
 
         if (info == null || info.displayName == null || info.displayName.isEmpty()) return;
+
+        WittContext ctx = new WittContext(mc, mc.theWorld, mc.thePlayer, mop);
+        WittTooltip tip = new WittTooltip();
+
+        IWailaRegistrar reg = WailaAPI.instance();
+        if (reg != null) {
+            if (mop.typeOfHit == MovingObjectType.BLOCK) {
+                int bx = mop.blockX;
+                int by = mop.blockY;
+                int bz = mop.blockZ;
+
+                Block b = mc.theWorld.getBlock(bx, by, bz);
+                if (b != null) {
+                    int meta = mc.theWorld.getBlockMetadata(bx, by, bz);
+                    TileEntity te = mc.theWorld.getTileEntity(bx, by, bz);
+
+                    IWailaDataAccessor acc = new DataAccessor(mc.theWorld, mc.thePlayer, mop, b, meta, bx, by, bz, te, info.stack, null);
+
+
+                    List<IWailaBlockDecorator> decs = reg.getDecorators(b);
+                    for (int i = 0; i < decs.size(); i++) {
+                        IWailaBlockDecorator d = decs.get(i);
+                        if (d == null) continue;
+                        try {
+                            d.decorateBlock(acc, reg.getConfig());
+                        } catch (Throwable ignored) {
+                        }
+                    }
+
+                    List<IWailaDataProvider> stackPs = reg.getStackProviders(b);
+                    for (int i = 0; i < stackPs.size(); i++) {
+                        IWailaDataProvider p = stackPs.get(i);
+                        if (p == null) continue;
+                        try {
+                            ItemStack ov = p.getWailaStack(acc, reg.getConfig());
+                            if (ov != null) {
+                                info.stack = ov;
+                                acc = new DataAccessor(mc.theWorld, mc.thePlayer, mop, b, meta, bx, by, bz, te, info.stack, null);
+                                break;
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                    }
+
+                    List<String> head = new ArrayList<String>();
+                    List<IWailaDataProvider> headPs = reg.getHeadProviders(b);
+                    for (int i = 0; i < headPs.size(); i++) {
+                        IWailaDataProvider p = headPs.get(i);
+                        if (p == null) continue;
+                        try {
+                            head = p.getWailaHead(info.stack, head, acc, reg.getConfig());
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                    if (!head.isEmpty()) info.displayName = String.valueOf(head.get(0));
+                    for (int i = 1; i < head.size(); i++) tip.add(String.valueOf(head.get(i)), 0xFFFFFF);
+
+                    List<String> body = new ArrayList<String>();
+                    List<IWailaDataProvider> bodyPs = reg.getBodyProviders(b);
+                    for (int i = 0; i < bodyPs.size(); i++) {
+                        IWailaDataProvider p = bodyPs.get(i);
+                        if (p == null) continue;
+                        try {
+                            body = p.getWailaBody(info.stack, body, acc, reg.getConfig());
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                    for (int i = 0; i < body.size(); i++) tip.add(String.valueOf(body.get(i)), 0xFFFFFF);
+
+                    List<String> tail = new ArrayList<String>();
+                    List<IWailaDataProvider> tailPs = reg.getTailProviders(b);
+                    for (int i = 0; i < tailPs.size(); i++) {
+                        IWailaDataProvider p = tailPs.get(i);
+                        if (p == null) continue;
+                        try {
+                            tail = p.getWailaTail(info.stack, tail, acc, reg.getConfig());
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                    for (int i = 0; i < tail.size(); i++) tip.add(String.valueOf(tail.get(i)), 0xFFFFFF);
+                }
+            } else if (mop.typeOfHit == MovingObjectType.ENTITY && mop.entityHit != null) {
+                IWailaEntityAccessor eacc = new EntityAccessor(mc.theWorld, mc.thePlayer, mop, mop.entityHit);
+
+                List<IWailaEntityDecorator> decs = reg.getDecorators(mop.entityHit);
+                for (int i = 0; i < decs.size(); i++) {
+                    IWailaEntityDecorator d = decs.get(i);
+                    if (d == null) continue;
+                    try {
+                        d.decorateEntity(eacc, reg.getConfig());
+                    } catch (Throwable ignored) {
+                    }
+                }
+
+                List<String> head = new ArrayList<String>();
+                List<IWailaEntityProvider> headPs = reg.getHeadProviders(mop.entityHit);
+                for (int i = 0; i < headPs.size(); i++) {
+                    IWailaEntityProvider p = headPs.get(i);
+                    if (p == null) continue;
+                    try {
+                        head = p.getWailaHead(info.stack, head, eacc, reg.getConfig());
+                    } catch (Throwable ignored) {
+                    }
+                }
+                if (!head.isEmpty()) info.displayName = String.valueOf(head.get(0));
+                for (int i = 1; i < head.size(); i++) tip.add(String.valueOf(head.get(i)), 0xFFFFFF);
+
+                List<String> body = new ArrayList<String>();
+                List<IWailaEntityProvider> bodyPs = reg.getBodyProviders(mop.entityHit);
+                for (int i = 0; i < bodyPs.size(); i++) {
+                    IWailaEntityProvider p = bodyPs.get(i);
+                    if (p == null) continue;
+                    try {
+                        body = p.getWailaBody(info.stack, body, eacc, reg.getConfig());
+                    } catch (Throwable ignored) {
+                    }
+                }
+                for (int i = 0; i < body.size(); i++) tip.add(String.valueOf(body.get(i)), 0xFFFFFF);
+
+                List<String> tail = new ArrayList<String>();
+                List<IWailaEntityProvider> tailPs = reg.getTailProviders(mop.entityHit);
+                for (int i = 0; i < tailPs.size(); i++) {
+                    IWailaEntityProvider p = tailPs.get(i);
+                    if (p == null) continue;
+                    try {
+                        tail = p.getWailaTail(info.stack, tail, eacc, reg.getConfig());
+                    } catch (Throwable ignored) {
+                    }
+                }
+                for (int i = 0; i < tail.size(); i++) tip.add(String.valueOf(tail.get(i)), 0xFFFFFF);
+            }
+        }
+
+        IWittIntegration[] integrations = WITT.getWittIntegrations();
+        if (integrations != null) {
+            for (int i = 0; i < integrations.length; i++) {
+                try {
+                    IWittIntegration integ = integrations[i];
+                    if (integ != null) integ.addLines(ctx, tip);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+
+        if (info.displayName == null || info.displayName.isEmpty()) return;
 
         ScaledResolution res = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
         int width = res.getScaledWidth();
@@ -103,20 +260,6 @@ public class WittOverlayHandler {
             if (b instanceof BlockChest) {
                 drawCentered(centerX, y, "isDoubleChest: " + (info.isDoubleChest ? "True" : "False"), 0xCCCCCC);
                 y += fontH + 2;
-            }
-        }
-
-        WittContext ctx = new WittContext(mc, mc.theWorld, mc.thePlayer, mop);
-        WittTooltip tip = new WittTooltip();
-
-        IWittIntegration[] integrations = WITT.getWittIntegrations();
-        if (integrations != null) {
-            for (int i = 0; i < integrations.length; i++) {
-                try {
-                    IWittIntegration integ = integrations[i];
-                    if (integ != null) integ.addLines(ctx, tip);
-                } catch (Throwable ignored) {
-                }
             }
         }
 
@@ -285,14 +428,12 @@ public class WittOverlayHandler {
                 requiredLevel = -1;
             }
 
-
             if (block.getMaterial() == Material.ground
                     || block.getMaterial() == Material.grass
                     || block.getMaterial() == Material.sand) {
                 requiredToolClass = "any";
                 requiredLevel = -1;
             }
-
 
             if (requiredToolClass == null || requiredToolClass.isEmpty()) {
                 requiredToolClass = guessToolClass(block);
@@ -308,7 +449,6 @@ public class WittOverlayHandler {
                 } else {
                     ItemStack held = player.getHeldItem();
                     if (held != null) {
-
                         boolean toolMatches;
 
                         if ("shears".equalsIgnoreCase(requiredToolClass)) {
@@ -340,84 +480,6 @@ public class WittOverlayHandler {
         }
 
         return info;
-    }
-
-    private void renderSpinningDoubleChest(ItemStack stack, int centerX, int centerY, boolean alongX) {
-        if (mc.theWorld == null || stack == null || stack.getItem() == null) return;
-
-        float oldBx = OpenGlHelper.lastBrightnessX;
-        float oldBy = OpenGlHelper.lastBrightnessY;
-
-        boolean oldInFrame = RenderItem.renderInFrame;
-
-        try {
-            long t = Minecraft.getSystemTime();
-            float angle = (t % 4000L) / 4000.0F * 360.0F;
-
-            GL11.glPushMatrix();
-            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
-
-            GL11.glEnable(GL11.GL_DEPTH_TEST);
-            GL11.glDepthMask(true);
-            GL11.glDisable(GL11.GL_CULL_FACE);
-
-            GL11.glDisable(GL11.GL_LIGHTING);
-            GL11.glDisable(GL11.GL_COLOR_MATERIAL);
-            GL11.glShadeModel(GL11.GL_FLAT);
-
-            GL11.glColor4f(1F, 1F, 1F, 1F);
-            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240F, 240F);
-
-            GL11.glEnable(GL11.GL_ALPHA_TEST);
-            GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
-            GL11.glDisable(GL11.GL_BLEND);
-
-            float scale = 18F;
-            float yOffset = 6F;
-
-            GL11.glTranslatef(centerX, centerY + yOffset, 150F);
-            GL11.glScalef(scale, scale, scale);
-            GL11.glRotatef(150F, 1F, 0F, 0F);
-            GL11.glRotatef(angle, 0F, 1F, 0F);
-
-            float off = 0.55F;
-
-            mc.getTextureManager().bindTexture(TextureMap.locationItemsTexture);
-
-            EntityItem e1 = new EntityItem(mc.theWorld, 0, 0, 0, stack);
-            EntityItem e2 = new EntityItem(mc.theWorld, 0, 0, 0, stack);
-            e1.hoverStart = 0;
-            e2.hoverStart = 0;
-
-            RenderHelper.enableGUIStandardItemLighting();
-
-            RenderItem ri = new RenderItem();
-            ri.setRenderManager(RenderManager.instance);
-            RenderItem.renderInFrame = true;
-
-            GL11.glPushMatrix();
-            if (alongX) GL11.glTranslatef(-off, 0F, 0F); else GL11.glTranslatef(0F, 0F, -off);
-            ri.doRender(e1, 0, 0, 0, 0F, 0F);
-            GL11.glPopMatrix();
-
-            GL11.glPushMatrix();
-            if (alongX) GL11.glTranslatef(off, 0F, 0F); else GL11.glTranslatef(0F, 0F, off);
-            ri.doRender(e2, 0, 0, 0, 0F, 0F);
-            GL11.glPopMatrix();
-
-            RenderItem.renderInFrame = oldInFrame;
-
-            RenderHelper.disableStandardItemLighting();
-
-            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, oldBx, oldBy);
-
-            GL11.glPopAttrib();
-            GL11.glPopMatrix();
-        } catch (Throwable ignored) {
-            RenderItem.renderInFrame = oldInFrame;
-            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, oldBx, oldBy);
-            renderFlatItem(stack, centerX, centerY);
-        }
     }
 
     private TargetInfo getEntityInfo(MovingObjectPosition mop) {
@@ -713,72 +775,82 @@ public class WittOverlayHandler {
         }
     }
 
-    private void renderAnimatedChest(Block block, int meta, int centerX, int centerY, boolean isDouble, boolean alongX) {
-        if (mc.theWorld == null) return;
+    private void renderSpinningDoubleChest(ItemStack stack, int centerX, int centerY, boolean alongX) {
+        if (mc.theWorld == null || stack == null || stack.getItem() == null) return;
 
-        long t = Minecraft.getSystemTime();
-        float spin = (t % 4000L) / 4000.0F * 360.0F;
+        float oldBx = OpenGlHelper.lastBrightnessX;
+        float oldBy = OpenGlHelper.lastBrightnessY;
 
-        float f = (t % 1200L) / 1200.0F;
-        float lid = (float) (0.5F - 0.5F * Math.cos(f * Math.PI));
+        boolean oldInFrame = RenderItem.renderInFrame;
 
-        GL11.glPushMatrix();
-        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
-
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
-        GL11.glDepthMask(true);
-        GL11.glDisable(GL11.GL_CULL_FACE);
-
-        GL11.glDisable(GL11.GL_LIGHTING);
-        GL11.glDisable(GL11.GL_COLOR_MATERIAL);
-        GL11.glShadeModel(GL11.GL_FLAT);
-        GL11.glColor4f(1F, 1F, 1F, 1F);
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240F, 240F);
-
-        float scale = 18F;
-        float yOffset = 7F;
-
-        GL11.glTranslatef(centerX, centerY + yOffset, 150F);
-        GL11.glScalef(scale, scale, scale);
-        GL11.glRotatef(150F, 1F, 0F, 0F);
-        GL11.glRotatef(spin, 0F, 1F, 0F);
-
-        net.minecraft.tileentity.TileEntityChest te = new net.minecraft.tileentity.TileEntityChest();
-        te.blockType = block;
-        te.blockMetadata = meta;
-        te.lidAngle = lid;
-        te.prevLidAngle = lid;
-
-        if (isDouble) {
-            net.minecraft.tileentity.TileEntityChest te2 = new net.minecraft.tileentity.TileEntityChest();
-            te2.blockType = block;
-            te2.blockMetadata = meta;
-            te2.lidAngle = lid;
-            te2.prevLidAngle = lid;
-
-            if (alongX) {
-                te.adjacentChestXPos = te2;
-                te2.adjacentChestXNeg = te;
-            } else {
-                te.adjacentChestZPos = te2;
-                te2.adjacentChestZNeg = te;
-            }
+        try {
+            long t = Minecraft.getSystemTime();
+            float angle = (t % 4000L) / 4000.0F * 360.0F;
 
             GL11.glPushMatrix();
-            GL11.glTranslatef(-0.5F, 0F, 0F);
-            net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher.instance.renderTileEntityAt(te, 0, 0, 0, 0F);
+            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthMask(true);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+
+            GL11.glDisable(GL11.GL_LIGHTING);
+            GL11.glDisable(GL11.GL_COLOR_MATERIAL);
+            GL11.glShadeModel(GL11.GL_FLAT);
+
+            GL11.glColor4f(1F, 1F, 1F, 1F);
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240F, 240F);
+
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
+            GL11.glDisable(GL11.GL_BLEND);
+
+            float scale = 18F;
+            float yOffset = 6F;
+
+            GL11.glTranslatef(centerX, centerY + yOffset, 150F);
+            GL11.glScalef(scale, scale, scale);
+            GL11.glRotatef(150F, 1F, 0F, 0F);
+            GL11.glRotatef(angle, 0F, 1F, 0F);
+
+            float off = 0.55F;
+
+            mc.getTextureManager().bindTexture(TextureMap.locationItemsTexture);
+
+            EntityItem e1 = new EntityItem(mc.theWorld, 0, 0, 0, stack);
+            EntityItem e2 = new EntityItem(mc.theWorld, 0, 0, 0, stack);
+            e1.hoverStart = 0;
+            e2.hoverStart = 0;
+
+            RenderHelper.enableGUIStandardItemLighting();
+
+            RenderItem ri = new RenderItem();
+            ri.setRenderManager(RenderManager.instance);
+            RenderItem.renderInFrame = true;
+
+            GL11.glPushMatrix();
+            if (alongX) GL11.glTranslatef(-off, 0F, 0F); else GL11.glTranslatef(0F, 0F, -off);
+            ri.doRender(e1, 0, 0, 0, 0F, 0F);
             GL11.glPopMatrix();
 
             GL11.glPushMatrix();
-            GL11.glTranslatef(0.5F, 0F, 0F);
-            net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher.instance.renderTileEntityAt(te2, 0, 0, 0, 0F);
+            if (alongX) GL11.glTranslatef(off, 0F, 0F); else GL11.glTranslatef(0F, 0F, off);
+            ri.doRender(e2, 0, 0, 0, 0F, 0F);
             GL11.glPopMatrix();
-        } else {
-            net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher.instance.renderTileEntityAt(te, 0, 0, 0, 0F);
+
+            RenderItem.renderInFrame = oldInFrame;
+
+            RenderHelper.disableStandardItemLighting();
+
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, oldBx, oldBy);
+
+            GL11.glPopAttrib();
+            GL11.glPopMatrix();
+        } catch (Throwable ignored) {
+            RenderItem.renderInFrame = oldInFrame;
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, oldBx, oldBy);
+            renderFlatItem(stack, centerX, centerY);
         }
-
-        GL11.glPopAttrib();
-        GL11.glPopMatrix();
     }
 
     private void renderFlatItem(ItemStack stack, int centerX, int centerY) {
@@ -903,7 +975,7 @@ public class WittOverlayHandler {
             return "pickaxe";
         }
 
-        if ( m == Material.clay || m == Material.snow) {
+        if (m == Material.clay || m == Material.snow) {
             return "shovel";
         }
 
@@ -939,7 +1011,6 @@ public class WittOverlayHandler {
         String harvestTool;
         String harvestLevelName;
         int growthPercent = -1;
-
         boolean isDoubleChest;
         boolean doubleChestAlongX;
     }

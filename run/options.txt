@@ -6,7 +6,7 @@ saturation:0.0
 renderDistance:12
 guiScale:0
 particles:0
-bobView:true
+bobView:false
 anaglyph3d:false
 advancedOpengl:false
 maxFps:120
@@ -24,7 +24,7 @@ chatLinks:true
 chatLinksPrompt:true
 chatOpacity:1.0
 snooperEnabled:true
-fullscreen:false
+fullscreen:true
 enableVsync:true
 hideServerAddress:false
 advancedItemTooltips:false

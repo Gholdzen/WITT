@@ -1,13 +1,16 @@
 package com.gold.witt;
 
-import com.gold.witt.integration.WittHatsIntegration;
 import com.gold.witt.api.IWittIntegration;
+import com.gold.witt.api.IWailaRegistrarCallback;
+import com.gold.witt.api.WailaAPI;
+import com.gold.witt.api.impl.WailaRegistrar;
 import com.gold.witt.proxy.CommonProxy;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.ProgressManager;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLConstructionEvent;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLInterModComms;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 
 import java.util.ArrayList;
@@ -28,6 +31,11 @@ public class WITT {
     public static CommonProxy proxy;
 
     private static final List INTEGRATIONS = new ArrayList();
+    private static final WailaRegistrar REGISTRAR = new WailaRegistrar();
+
+    public static WailaRegistrar waila() {
+        return REGISTRAR;
+    }
 
     public static void createWittIntegration(String modid, IWittIntegration integration) {
         if (modid == null) return;
@@ -51,7 +59,6 @@ public class WITT {
         }
         return arr;
     }
-
 
     private static final class Entry {
         public final String modid;
@@ -103,12 +110,28 @@ public class WITT {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        createWittIntegration("hats", new WittHatsIntegration());
     }
-
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
+        WailaAPI.setRegistrar(REGISTRAR);
         proxy.init();
+    }
+
+    @Mod.EventHandler
+    public void imc(FMLInterModComms.IMCEvent event) {
+        for (FMLInterModComms.IMCMessage m : event.getMessages()) {
+            if (!"register".equals(m.key)) continue;
+            if (!m.isStringMessage()) continue;
+
+            String cls = m.getStringValue();
+            try {
+                Object o = Class.forName(cls).newInstance();
+                if (o instanceof IWailaRegistrarCallback) {
+                    ((IWailaRegistrarCallback) o).register(REGISTRAR);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
     }
 }
